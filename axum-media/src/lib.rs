@@ -1,10 +1,61 @@
-use axum::{
+//! [![github]](https://github.com/marekvospel/axum-media)
+//!
+//! [github]: https://img.shields.io/badge/github-8da0cb?labelColor=555555&logo=github
+//!
+//! <br>
+//!
+//! This crate provides a simple way to use multiple mime types for serializing and
+//! deserializing structs within the axum ecosystem. Inspired by axum's Json
+//! extractor.
+//!
+//!
+//! ## Example
+
+//! ```rust
+//! use axum_media::AnyMedia;
+
+//! #[tokio::main]
+//! async fn main() {
+//!   let app = axum::Router::new()
+//!     .route("/", axum::routing::get(index));
+//!     //.route("/login", axum::routing::post(login))
+//!   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
+//!     .serve(app.into_make_service());
+//!  }
+//!
+//! async fn index(headers: axum::http::HeaderMap) -> impl axum::response::IntoResponse {
+//!   AnyMedia(serde_json::json!({
+//!     "routes": ["/", "/login"]
+//!    }))
+//!    // Chooses the right serializer based on the Accept header
+//!      .with_mime_str(
+//!        headers
+//!          .get("accept")
+//!          .map(|v| v.to_str().unwrap_or(""))
+//!          .unwrap_or(""),
+//!      )
+//! }
+//!
+//! #[derive(serde::Deserialize)]
+//! struct LoginData {
+//!   email: String,
+//!   password: String,
+//! }
+//!
+//! // Automatically chooses the right deserializer based on the Content-Type header (To be implemented)
+//! // async fn login(AnyMedia(data): AnyMedia<LoginData>) -> String {
+//! //   data.email
+//! // }
+//!
+//! ```
+
+pub(crate) use axum::{
     http::{header, StatusCode},
     response::IntoResponse,
 };
-use bytes::{BufMut, BytesMut};
-use mime::Mime;
-use serde::Serialize;
+pub(crate) use bytes::{BufMut, BytesMut};
+pub(crate) use mime::Mime;
+pub(crate) use serde::Serialize;
 
 pub(crate) mod mimetypes;
 

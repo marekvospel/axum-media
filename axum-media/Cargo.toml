@@ -1,9 +1,12 @@
 [package]
 name = "axum-media"
 version = "0.1.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/marekvospel/axum-media"
+keywords = ["axum", "http", "serde", "web"]
+authors = ["Marek Vospěl <marek@vospel.cz>"]
+description = "A simple way to use multiple media types with axum"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = []
