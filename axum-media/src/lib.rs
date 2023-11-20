@@ -49,6 +49,7 @@
 //!
 //! ```
 
+use axum::http::HeaderValue;
 pub(crate) use axum::{
     http::{header, StatusCode},
     response::IntoResponse,
@@ -56,6 +57,7 @@ pub(crate) use axum::{
 pub(crate) use bytes::{BufMut, BytesMut};
 pub(crate) use mime::Mime;
 pub(crate) use serde::Serialize;
+use tracing::error;
 
 pub(crate) mod mimetypes;
 
@@ -128,11 +130,15 @@ where
             }
         }
 
-        if let Err(_) = result.unwrap() {
-            // TODO: handle error properly?
+        if let Err(err) = result.unwrap() {
+            error!("{}", err);
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                [(header::CONTENT_TYPE, mime.to_string())],
+                [(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static(mime::TEXT_PLAIN_UTF_8.as_ref()),
+                )],
+                err.to_string(),
             )
                 .into_response();
         }
