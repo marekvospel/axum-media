@@ -35,7 +35,7 @@ struct LoginData {
   password: String
 }
 
-// Automatically chooses the right deserializer based on the Content-Type header (To be implemented)
+// Automatically chooses the right deserializer based on the Content-Type header
 async fn login(AnyMedia(data): AnyMedia<LoginData>) -> String {
   data.email
 }

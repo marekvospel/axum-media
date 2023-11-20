@@ -42,18 +42,24 @@
 //!   password: String,
 //! }
 //!
-//! // Automatically chooses the right deserializer based on the Content-Type header (To be implemented)
-//! // async fn login(AnyMedia(data): AnyMedia<LoginData>) -> String {
-//! //   data.email
-//! // }
+//! // Automatically chooses the right deserializer based on the Content-Type header
+//! async fn login(AnyMedia(data): AnyMedia<LoginData>) -> String {
+//!   data.email
+//! }
 //!
 //! ```
 
-use axum::http::HeaderValue;
+use axum::{
+    body::HttpBody,
+    extract::{rejection::BytesRejection, FromRequest},
+    http::{HeaderValue, Request},
+    BoxError,
+};
 pub(crate) use axum::{
     http::{header, StatusCode},
     response::IntoResponse,
 };
+use bytes::Bytes;
 pub(crate) use bytes::{BufMut, BytesMut};
 pub(crate) use mime::Mime;
 pub(crate) use serde::Serialize;
@@ -109,16 +115,17 @@ where
         let mime = self.mime.unwrap_or(mime::APPLICATION_JSON);
         let mut buf = BytesMut::with_capacity(128).writer();
 
-        let mut result: Option<Result<(), AnyMediaError>> = match (mime.type_(), mime.subtype()) {
-            (mime::APPLICATION, mime::JSON) => {
-                Some(mimetypes::serialize_json(&self.data, &mut buf))
-            }
-            #[cfg(feature = "urlencoded")]
-            (mime::APPLICATION, mime::WWW_FORM_URLENCODED) => {
-                Some(mimetypes::serialize_urlencoded(&self.data, &mut buf))
-            }
-            _ => None,
-        };
+        let mut result: Option<Result<(), AnyMediaSerializeError>> =
+            match (mime.type_(), mime.subtype()) {
+                (mime::APPLICATION, mime::JSON) => {
+                    Some(mimetypes::serialize_json(&self.data, &mut buf))
+                }
+                #[cfg(feature = "urlencoded")]
+                (mime::APPLICATION, mime::WWW_FORM_URLENCODED) => {
+                    Some(mimetypes::serialize_urlencoded(&self.data, &mut buf))
+                }
+                _ => None,
+            };
 
         if let None = result {
             result = match (mime.type_(), mime.suffix()) {
@@ -151,11 +158,95 @@ where
     }
 }
 
+#[axum::async_trait]
+impl<T, S, B> FromRequest<S, B> for AnyMedia<T>
+where
+    T: serde::de::DeserializeOwned,
+    B: HttpBody + Send + 'static,
+    B::Data: Send,
+    B::Error: Into<BoxError>,
+    S: Send + Sync,
+{
+    type Rejection = AnyMediaRejection;
+
+    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+        let mime = req
+            .headers()
+            .get("content-type")
+            .map(|h| h.to_str().unwrap_or(""))
+            .unwrap_or("")
+            .parse()
+            .unwrap_or(mime::APPLICATION_JSON);
+
+        let bytes = Bytes::from_request(req, state).await?;
+
+        let result = match (mime.type_(), mime.subtype()) {
+            #[cfg(feature = "urlencoded")]
+            (mime::APPLICATION, mime::WWW_FORM_URLENCODED) => {
+                mimetypes::deserialize_urlencoded(&bytes)
+            }
+            _ => mimetypes::deserialize_json(&bytes),
+        };
+
+        match result {
+            Ok(data) => Ok(AnyMedia(data)),
+            Err(err) => {
+                error!("{}", err);
+                match err {
+                    AnyMediaDeserializeError::JsonError(err) => match err.inner().classify() {
+                        serde_json::error::Category::Data => {
+                            Err(AnyMediaRejection::JsonDataError(err))
+                        }
+                        serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
+                            Err(AnyMediaRejection::JsonSyntaxError(err))
+                        }
+                        serde_json::error::Category::Io => unreachable!(),
+                    },
+                    #[cfg(feature = "urlencoded")]
+                    AnyMediaDeserializeError::UrlEncodedError(err) => Err(err.into()),
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum AnyMediaError {
+pub enum AnyMediaRejection {
+    #[error("Failed to deserialize the JSON body into the target type: {0}")]
+    JsonDataError(serde_path_to_error::Error<serde_json::Error>),
+    #[error("Failed to parse the request body as JSON: {0}")]
+    JsonSyntaxError(serde_path_to_error::Error<serde_json::Error>),
+    #[error("{0}")]
+    BytesRejection(#[from] BytesRejection),
+    #[error("{0}")]
+    UrlEncodedError(#[from] serde_urlencoded::de::Error),
+}
+
+impl IntoResponse for AnyMediaRejection {
+    fn into_response(self) -> axum::response::Response {
+        (
+            StatusCode::BAD_REQUEST,
+            [(header::CONTENT_TYPE, mime::UTF_8.to_string())],
+            format!("{self}"),
+        )
+            .into_response()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum AnyMediaSerializeError {
     #[error("{0}")]
     JsonError(#[from] serde_json::Error),
     #[cfg(feature = "urlencoded")]
     #[error("{0}")]
     UrlEncodedError(#[from] serde_urlencoded::ser::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum AnyMediaDeserializeError {
+    #[error("{0}")]
+    JsonError(#[from] serde_path_to_error::Error<serde_json::Error>),
+    #[cfg(feature = "urlencoded")]
+    #[error("{0}")]
+    UrlEncodedError(#[from] serde_urlencoded::de::Error),
 }
