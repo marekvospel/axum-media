@@ -12,18 +12,23 @@ edition = "2021"
 default = []
 urlencoded = ["serde_urlencoded"]
 
+[[test]]
+name = "urlencoded"
+path = "tests/urlencoded.rs"
+required-features = ["urlencoded"]
+
 [dependencies]
 axum = { version = "0.6.20" }
 thiserror = "1.0.50"
 mime = "0.3.17"
 bytes = "1.5.0"
+tracing = "0.1.40"
 
 serde = { version = "1.0.192" }
 serde_path_to_error = "0.1.14"
 
 serde_json = { version = "1.0.108" }
 serde_urlencoded = { version = "0.7.1", optional = true }
-tracing = "0.1.40"
 
 [dev-dependencies]
 serde = { version = "1.0.192", features = ["derive"] }
