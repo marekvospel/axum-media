@@ -1,6 +1,11 @@
 //! [![github]](https://github.com/marekvospel/axum-media)
+//! [![crates.io]](https://crates.io/crates/axum_media)
+//! [![docs.rs]](https://docs.rs/axum_media/latest/axum_media)
+//!
 //!
 //! [github]: https://img.shields.io/badge/github-8da0cb?labelColor=555555&logo=github
+//! [crates.io]: https://img.shields.io/crates/v/axum_media.svg?color=fc8d62&logo=rust
+//! [docs.rs]: https://img.shields.io/badge/docs.rs-axum--media-66c2a5?labelColor=555555&logo=docs.rs
 //!
 //! <br>
 //!
@@ -17,8 +22,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!   let app = axum::Router::new()
-//!     .route("/", axum::routing::get(index));
-//!     //.route("/login", axum::routing::post(login))
+//!     .route("/", axum::routing::get(index))
+//!     .route("/login", axum::routing::post(login));
 //!   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
 //!     .serve(app.into_make_service());
 //!  }

@@ -10,7 +10,7 @@ edition = "2021"
 
 [features]
 default = []
-urlencoded = ["serde_urlencoded"]
+urlencoded = ["dep:serde_urlencoded"]
 
 [[test]]
 name = "urlencoded"
