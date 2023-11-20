@@ -10,7 +10,7 @@ permissions:
 jobs:
   test:
     name: Rust ${{ matrix.rust }}
-    runs-on: ubuntu-lateset
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         rust: [stable, beta, nightly]
