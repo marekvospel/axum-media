@@ -218,6 +218,7 @@ pub enum AnyMediaRejection {
     JsonSyntaxError(serde_path_to_error::Error<serde_json::Error>),
     #[error("{0}")]
     BytesRejection(#[from] BytesRejection),
+    #[cfg(feature = "urlencoded")]
     #[error("{0}")]
     UrlEncodedError(#[from] serde_urlencoded::de::Error),
 }
