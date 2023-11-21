@@ -54,9 +54,9 @@
 //!
 //! ```
 
-use axum::{
+pub(crate) use axum::{
     body::HttpBody,
-    extract::{rejection::BytesRejection, FromRequest},
+    extract::FromRequest,
     http::{HeaderValue, Request},
     BoxError,
 };
@@ -66,11 +66,16 @@ pub(crate) use axum::{
 };
 use bytes::Bytes;
 pub(crate) use bytes::{BufMut, BytesMut};
+pub(crate) use error::{AnyMediaDeserializeError, AnyMediaSerializeError};
 pub(crate) use mime::Mime;
 pub(crate) use serde::Serialize;
-use tracing::error;
+pub(crate) use tracing::error;
 
+pub(crate) mod error;
 pub(crate) mod mimetypes;
+
+// Re-export
+pub use error::AnyMediaRejection;
 
 #[derive(Debug, Clone, Default)]
 pub struct AnyMedia<T>(pub T);
@@ -121,22 +126,36 @@ where
         let mut buf = BytesMut::with_capacity(128).writer();
 
         let mut result: Option<Result<(), AnyMediaSerializeError>> =
-            match (mime.type_(), mime.subtype()) {
-                (mime::APPLICATION, mime::JSON) => {
+            match (mime.type_(), mime.subtype().as_str()) {
+                (mime::APPLICATION, "json") => {
                     Some(mimetypes::serialize_json(&self.data, &mut buf))
                 }
                 #[cfg(feature = "urlencoded")]
-                (mime::APPLICATION, mime::WWW_FORM_URLENCODED) => {
+                (mime::APPLICATION, "x-www-form-urlencoded") => {
                     Some(mimetypes::serialize_urlencoded(&self.data, &mut buf))
                 }
+                #[cfg(feature = "yaml")]
+                (mime::APPLICATION, "yaml") => {
+                    Some(mimetypes::serialize_yaml(&self.data, &mut buf))
+                }
+                #[cfg(feature = "xml")]
+                (mime::APPLICATION, "xml") => Some(mimetypes::serialize_xml(&self.data, &mut buf)),
                 _ => None,
             };
 
         if let None = result {
-            result = match (mime.type_(), mime.suffix()) {
+            result = match (mime.type_(), mime.suffix().map(|m| m.as_str())) {
                 #[cfg(feature = "urlencoded")]
-                (mime::APPLICATION, Some(mime::WWW_FORM_URLENCODED)) => {
+                (mime::APPLICATION, Some("x-www-form-urlencoded")) => {
                     Some(mimetypes::serialize_urlencoded(&self.data, &mut buf))
+                }
+                #[cfg(feature = "yaml")]
+                (mime::APPLICATION, Some("yaml")) => {
+                    Some(mimetypes::serialize_yaml(&self.data, &mut buf))
+                }
+                #[cfg(feature = "xml")]
+                (mime::APPLICATION, Some("xml")) => {
+                    Some(mimetypes::serialize_xml(&self.data, &mut buf))
                 }
                 _ => Some(mimetypes::serialize_json(&self.data, &mut buf)),
             }
@@ -185,11 +204,13 @@ where
 
         let bytes = Bytes::from_request(req, state).await?;
 
-        let result = match (mime.type_(), mime.subtype()) {
+        let result = match (mime.type_(), mime.subtype().as_str()) {
             #[cfg(feature = "urlencoded")]
-            (mime::APPLICATION, mime::WWW_FORM_URLENCODED) => {
+            (mime::APPLICATION, "x-www-form-urlencoded") => {
                 mimetypes::deserialize_urlencoded(&bytes)
             }
+            #[cfg(feature = "yaml")]
+            (mime::APPLICATION, "yaml") => mimetypes::deserialize_yaml(&bytes),
             _ => mimetypes::deserialize_json(&bytes),
         };
 
@@ -209,50 +230,11 @@ where
                     },
                     #[cfg(feature = "urlencoded")]
                     AnyMediaDeserializeError::UrlEncodedError(err) => Err(err.into()),
+                    // TODO: Implement yaml error handling
+                    #[cfg(feature = "yaml")]
+                    AnyMediaDeserializeError::YamlError(_err) => unimplemented!(),
                 }
             }
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum AnyMediaRejection {
-    #[error("Failed to deserialize the JSON body into the target type: {0}")]
-    JsonDataError(serde_path_to_error::Error<serde_json::Error>),
-    #[error("Failed to parse the request body as JSON: {0}")]
-    JsonSyntaxError(serde_path_to_error::Error<serde_json::Error>),
-    #[error("{0}")]
-    BytesRejection(#[from] BytesRejection),
-    #[cfg(feature = "urlencoded")]
-    #[error("{0}")]
-    UrlEncodedError(#[from] serde_urlencoded::de::Error),
-}
-
-impl IntoResponse for AnyMediaRejection {
-    fn into_response(self) -> axum::response::Response {
-        (
-            StatusCode::BAD_REQUEST,
-            [(header::CONTENT_TYPE, mime::UTF_8.to_string())],
-            format!("{self}"),
-        )
-            .into_response()
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum AnyMediaSerializeError {
-    #[error("{0}")]
-    JsonError(#[from] serde_json::Error),
-    #[cfg(feature = "urlencoded")]
-    #[error("{0}")]
-    UrlEncodedError(#[from] serde_urlencoded::ser::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum AnyMediaDeserializeError {
-    #[error("{0}")]
-    JsonError(#[from] serde_path_to_error::Error<serde_json::Error>),
-    #[cfg(feature = "urlencoded")]
-    #[error("{0}")]
-    UrlEncodedError(#[from] serde_urlencoded::de::Error),
 }
