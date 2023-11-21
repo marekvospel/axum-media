@@ -20,3 +20,13 @@ jobs:
         with:
           toolchain: ${{matrix.rust}}
       - run: cargo test --all
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          components: clippy
+      - name: Run clippy
+        run: cargo clippy --tests --workspace
