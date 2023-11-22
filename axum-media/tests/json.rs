@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 async fn it_should_serialize_json() {
     let app = Router::new().route(
         "/",
-        get(|| async { AnyMedia(json!({ "test": true, "key": "value" })) }),
+        get(|| async { AnyMedia(json!({ "test": true, "key": "value" }), None.into()) }),
     );
 
     let client = TestClient::new(app);
@@ -31,7 +31,7 @@ struct TestData {
 
 #[tokio::test]
 async fn it_should_deserialize_json() {
-    async fn handler(AnyMedia(json): AnyMedia<TestData>) -> impl IntoResponse {
+    async fn handler(AnyMedia(json, _): AnyMedia<TestData>) -> impl IntoResponse {
         json.test.to_string()
     }
 
@@ -52,7 +52,7 @@ async fn it_should_deserialize_json() {
 
 #[tokio::test]
 async fn it_should_reject_invalid_json() {
-    async fn handler(AnyMedia(json): AnyMedia<TestData>) -> impl IntoResponse {
+    async fn handler(AnyMedia(json, _): AnyMedia<TestData>) -> impl IntoResponse {
         json.test.to_string()
     }
 

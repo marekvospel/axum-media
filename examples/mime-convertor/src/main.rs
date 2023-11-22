@@ -14,12 +14,15 @@ async fn main() {
 // Takes any Content-Type body and converts it to a different mime type based on the Accept header.
 async fn handler(
     headers: HeaderMap,
-    AnyMedia(value): AnyMedia<serde_json::Value>,
+    AnyMedia(value, _): AnyMedia<serde_json::Value>,
 ) -> impl IntoResponse {
-    AnyMedia(value).with_mime_str(
+    AnyMedia(
+        value,
         headers
             .get("accept")
             .map(|v| v.to_str().unwrap_or(""))
-            .unwrap_or(""),
+            .unwrap_or("")
+            .to_owned()
+            .into(),
     )
 }

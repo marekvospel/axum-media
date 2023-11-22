@@ -16,7 +16,7 @@ axum-media = { version = "0.1.1", features = ["urlencoded"]}
 ## Example
 
 ```rust
-use axum_media::AnyMedia;
+use axum_media::{AnyMedia, ContentType};
 
 #[tokio::main]
 async fn main() {
@@ -25,17 +25,14 @@ async fn main() {
     .route("/login", post(login))
 }
 
-async fn index(headers: HeaderMap) -> impl IntoResponse {
-  AnyMedia(serde_json::json!({
-    "routes": ["/", "/login"]
-  }))
+async fn index(content_type: ContentType) -> impl IntoResponse {
   // Chooses the right serializer based on the Accept header
-    .with_mime_str(
-      headers
-        .get("accept")
-        .map(|v| v.to_str().unwrap_or(""))
-        .unwrap_or(""),
-    )
+  AnyMedia(
+    serde_json::json!({
+      "routes": ["/", "/login"],
+    }),
+    content_type,
+  )
 }
 
 #[derive(Deserialize)]
