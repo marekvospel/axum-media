@@ -95,6 +95,12 @@ impl<T> AnyMedia<T> {
 
 _impl_deref!(AnyMedia);
 
+impl<T> From<T> for AnyMedia<T> {
+    fn from(data: T) -> Self {
+        AnyMedia(data)
+    }
+}
+
 #[derive(Clone)]
 pub struct AnyMediaIntoResponse<T> {
     data: T,
