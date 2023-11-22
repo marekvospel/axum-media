@@ -93,6 +93,8 @@ impl<T> AnyMedia<T> {
     }
 }
 
+_impl_deref!(AnyMedia);
+
 #[derive(Clone)]
 pub struct AnyMediaIntoResponse<T> {
     data: T,
@@ -255,4 +257,24 @@ pub(crate) enum AnyMediaDeserializeError {
     #[cfg(feature = "urlencoded")]
     #[error("{0}")]
     UrlEncodedError(#[from] serde_urlencoded::de::Error),
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! _impl_deref {
+    ($ident:ident) => {
+        impl<T> std::ops::Deref for $ident<T> {
+            type Target = T;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl<T> std::ops::DerefMut for $ident<T> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+    };
 }
