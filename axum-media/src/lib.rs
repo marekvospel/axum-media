@@ -52,8 +52,11 @@
 //! }
 //!
 //! ```
+//!
+//! ## Features
+//! - `urlencoded` - Enables support for `application/x-www-form-urlencoded` using [`serde_urlencoded`].
 
-pub(crate) use axum::{
+use axum::{
     extract::rejection::BytesRejection,
     http::{header, StatusCode},
     response::IntoResponse,
@@ -66,6 +69,7 @@ pub(crate) mod mimetypes;
 pub use accept::Accept;
 pub use anymedia::AnyMedia;
 
+/// Rejection for [`AnyMedia`] extractor.
 #[derive(Debug, thiserror::Error)]
 pub enum AnyMediaRejection {
     #[error("Failed to deserialize the JSON body into the target type: {0}")]
@@ -75,7 +79,7 @@ pub enum AnyMediaRejection {
     #[error("{0}")]
     BytesRejection(#[from] BytesRejection),
     #[cfg(feature = "urlencoded")]
-    #[error("{0}")]
+    #[error("Failed to deserialize the Form urlencoded body into the target type: {0}")]
     UrlEncodedError(#[from] serde_urlencoded::de::Error),
 }
 

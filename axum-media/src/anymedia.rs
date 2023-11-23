@@ -13,6 +13,84 @@ use tracing::error;
 
 use crate::{mimetypes, AnyMediaDeserializeError, AnyMediaRejection, AnyMediaSerializeError};
 
+/// Automatic data extractor / response.
+///
+/// When used as an extractor it parses the request's `Content-Type` header and tries to [`serde::Deserialize`]
+/// the body into `<T>`. When extracting second field will always be `None`. If the `Content-Type`
+/// is missing, invalid or not supported, `application/json` will be used.
+///
+/// [`AnyMediaRejection`] will be returned in case the body is not valid or `<T>` cannot be deserialized.
+///
+/// When used as a response, second field is used to determine the type to Serialize to. If `None`,
+/// `application/json` will be used. Meant to be used with [`crate::Accept`] extractor.
+///
+/// ## Extractor example
+///
+/// ```rust,no_run
+/// use axum::{response::IntoResponse, routing::{get, post}};
+/// use axum_media::{AnyMedia, Accept};
+///
+/// #[tokio::main]
+/// async fn main() {
+///   let app = axum::Router::new()
+///     .route("/login", post(login_handler));
+///
+///   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
+///     .serve(app.into_make_service())
+///     .await.unwrap()
+/// }
+///
+/// #[derive(serde::Deserialize)]
+/// struct LoginData {
+///   email: String,
+///   password: String,
+/// }
+///
+/// // Uses the `Content-Type` to determine what to try to Deserialize.
+/// async fn login_handler(data: AnyMedia<LoginData>) -> String {
+///   format!("Authorization: {}:{}", data.email, data.password)
+/// }
+///
+/// ```
+///
+/// ## Response example
+///
+/// ```rust,no_run
+/// use axum::{response::IntoResponse, routing::{get, post}};
+/// use axum_media::{AnyMedia, Accept};
+///
+/// #[tokio::main]
+/// async fn main() {
+///   let app = axum::Router::new()
+///     .route("/posts", get(returns_anything_handler))
+///     .route("/always_json", get(always_json_handler));
+///
+///   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
+///     .serve(app.into_make_service())
+///     .await.unwrap()
+/// }
+///
+/// // Always returns json, because second parameter is none.
+/// async fn always_json_handler() -> impl IntoResponse {
+///    AnyMedia(serde_json::json!({ "version": "1.0.0" }), None)
+/// }
+///
+/// // Can be used with the Accept extractor to return values based on the `Accept` header.
+/// async fn returns_anything_handler(accept: Accept) -> impl IntoResponse {
+///   AnyMedia(
+///     serde_json::json!({
+///       "posts": [
+///         {
+///           "title": "MyPost",
+///           "description": "A short about how dogs are better than cats"
+///         }
+///       ]
+///     }),
+///     accept.into(),
+///   )
+/// }
+/// ```
+///
 #[derive(Debug, Clone, Default)]
 pub struct AnyMedia<T>(pub T, pub Option<String>);
 
