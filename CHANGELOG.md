@@ -1,5 +1,5 @@
 
-## Unreleased
+## 0.2.0 (2023-11-23)
 
 * ⚠️ BREAKING: add field to `AnyMedia` to use when decoding
 * ⚠️ BREAKING: remove `AnyMediaIntoResponse`

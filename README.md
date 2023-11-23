@@ -9,8 +9,8 @@ extractor.
 
 ```toml
 [dependencies]
-# Enable optional features such as urlencoded
-axum-media = { version = "0.1.1", features = ["urlencoded"]}
+# Enable features such as urlencoded
+axum-media = { version = "0.2.0", features = ["urlencoded"]}
 ```
 
 ## Example
@@ -42,7 +42,7 @@ struct LoginData {
 }
 
 // Automatically chooses the right deserializer based on the Content-Type header
-async fn login(AnyMedia(data): AnyMedia<LoginData>) -> String {
+async fn login(AnyMedia(data, _): AnyMedia<LoginData>) -> String {
   data.email
 }
 
