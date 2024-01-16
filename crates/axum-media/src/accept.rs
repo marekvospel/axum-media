@@ -27,8 +27,8 @@ use axum::{extract::FromRequestParts, http::request::Parts};
 /// async fn main() {
 ///   let app = axum::Router::new().route("/", axum::routing::get(handler));
 ///
-///   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-///     .serve(app.into_make_service()).await.unwrap();
+///   let tcp = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+///   axum::serve(tcp, app.into_make_service()).await.unwrap()
 /// }
 /// ```
 #[derive(Debug, Clone)]

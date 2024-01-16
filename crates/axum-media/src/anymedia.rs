@@ -1,11 +1,10 @@
 use std::ops::{Deref, DerefMut};
 
 use axum::{
-    body::HttpBody,
+    body::Body,
     extract::FromRequest,
     http::{header, HeaderValue, Request, StatusCode},
     response::IntoResponse,
-    BoxError,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use serde::Serialize;
@@ -35,9 +34,8 @@ use crate::{mimetypes, AnyMediaDeserializeError, AnyMediaRejection, AnyMediaSeri
 ///   let app = axum::Router::new()
 ///     .route("/login", post(login_handler));
 ///
-///   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-///     .serve(app.into_make_service())
-///     .await.unwrap()
+///   let tcp = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+///   axum::serve(tcp, app.into_make_service()).await.unwrap()
 /// }
 ///
 /// #[derive(serde::Deserialize)]
@@ -65,9 +63,8 @@ use crate::{mimetypes, AnyMediaDeserializeError, AnyMediaRejection, AnyMediaSeri
 ///     .route("/posts", get(returns_anything_handler))
 ///     .route("/always_json", get(always_json_handler));
 ///
-///   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-///     .serve(app.into_make_service())
-///     .await.unwrap()
+///   let tcp = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+///   axum::serve(tcp, app.into_make_service()).await.unwrap()
 /// }
 ///
 /// // Always returns json, because second parameter is none.
@@ -169,17 +166,14 @@ where
 }
 
 #[axum::async_trait]
-impl<T, S, B> FromRequest<S, B> for AnyMedia<T>
+impl<T, S> FromRequest<S> for AnyMedia<T>
 where
     T: serde::de::DeserializeOwned,
-    B: HttpBody + Send + 'static,
-    B::Data: Send,
-    B::Error: Into<BoxError>,
     S: Send + Sync,
 {
     type Rejection = AnyMediaRejection;
 
-    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request<Body>, state: &S) -> Result<Self, Self::Rejection> {
         let mime = req
             .headers()
             .get("content-type")

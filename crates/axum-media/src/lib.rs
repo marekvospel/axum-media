@@ -25,9 +25,8 @@
 //!     .route("/", axum::routing::get(index))
 //!     .route("/login", axum::routing::post(login));
 //!
-//!   axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-//!     .serve(app.into_make_service())
-//!     .await.unwrap();
+//!   let tcp = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+//!   axum::serve(tcp, app.into_make_service()).await.unwrap()
 //! }
 //!
 //! async fn index(accept: Accept) -> impl axum::response::IntoResponse {

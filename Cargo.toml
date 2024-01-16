@@ -1,3 +1,3 @@
 [workspace]
-members = ["axum-media", "examples/*"]
+members = ["crates/*", "examples/*"]
 resolver = "2"
